@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — Book Flight</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container" style="max-width:760px;">
+
+      <div style="margin-bottom:28px;">
+        <a href="/flights-search.html" style="font-size:13px;color:var(--on-surface-variant);text-decoration:none;">← Back to Flights</a>
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;margin-top:8px;">Book Flight</div>
+      </div>
+
+      <div id="flight-preview" style="margin-bottom:28px;">
+        <div style="text-align:center;padding:24px;"><span class="spinner"></span></div>
+      </div>
+
+      <div style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:20px;">Seat Class</div>
+        <div class="seat-selector" id="seat-selector">
+          <label class="seat-option">
+            <input type="radio" name="seatClass" value="ECONOMY" checked>
+            <div class="seat-option__card">
+              <div style="font-size:14px;font-weight:600;">Economy</div>
+              <div class="data-mono" id="price-economy" style="font-size:13px;color:var(--on-surface-variant);">—</div>
+            </div>
+          </label>
+          <label class="seat-option">
+            <input type="radio" name="seatClass" value="BUSINESS">
+            <div class="seat-option__card">
+              <div style="font-size:14px;font-weight:600;">Business</div>
+              <div class="data-mono" id="price-business" style="font-size:13px;color:var(--on-surface-variant);">—</div>
+            </div>
+          </label>
+          <label class="seat-option">
+            <input type="radio" name="seatClass" value="FIRST_CLASS">
+            <div class="seat-option__card">
+              <div style="font-size:14px;font-weight:600;">First Class</div>
+              <div class="data-mono badge-gold" id="price-first" style="font-size:13px;">—</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:600;">Passengers</div>
+          <button type="button" class="cloud-btn-outline" style="padding:6px 16px;font-size:13px;" onclick="addPassenger()">
+            <i data-lucide="plus" style="width:13px;height:13px;"></i> Add Passenger
+          </button>
+        </div>
+        <div id="passengers-list"></div>
+      </div>
+
+      <div id="agent-section" style="display:none;background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Book on Behalf of Customer</div>
+        <div class="form-group">
+          <label class="form-label">Customer ID (optional)</label>
+          <input id="customer-id" type="number" class="input-sky" placeholder="Leave blank to book for yourself">
+        </div>
+      </div>
+
+      <div style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:28px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:15px;font-weight:600;">Total Price</div>
+          <div class="data-mono" id="total-price" style="font-size:22px;font-weight:700;color:var(--primary);">$0.00</div>
+        </div>
+        <div style="font-size:12px;color:var(--on-surface-variant);margin-top:6px;" id="price-breakdown"></div>
+      </div>
+
+      <button id="book-btn" class="cloud-btn" style="width:100%;" onclick="submitBooking()">
+        Confirm Booking
+      </button>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/flights.js"></script>
+  <script src="/js/booking.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    let _flight = null;
+    let _passengerCount = 0;
+
+    function addPassenger() {
+      _passengerCount++;
+      const idx = _passengerCount;
+      const div = document.createElement('div');
+      div.id = `pax-${idx}`;
+      div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;margin-bottom:14px;align-items:end;';
+      div.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">Name</label>
+          <input type="text" class="input-sky pax-name" placeholder="Full name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Passport No.</label>
+          <input type="text" class="input-sky pax-passport" placeholder="Passport number">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" class="input-sky pax-dob">
+        </div>
+        ${idx > 1 ? `<button type="button" onclick="document.getElementById('pax-${idx}').remove();recalcTotal();"
+          class="cloud-btn-outline" style="padding:8px 12px;color:var(--error);">✕</button>` : '<div></div>'}
+      `;
+      document.getElementById('passengers-list').appendChild(div);
+      div.querySelectorAll('input').forEach(i => i.addEventListener('change', recalcTotal));
+    }
+
+    function getSelectedClass() {
+      return document.querySelector('input[name="seatClass"]:checked')?.value || 'ECONOMY';
+    }
+
+    function getBasePrice() {
+      if (!_flight) return 0;
+      const cls = getSelectedClass();
+      if (cls === 'ECONOMY')    return _flight.calculatedEconomyPrice    ?? _flight.economyPrice    ?? 0;
+      if (cls === 'BUSINESS')   return _flight.calculatedBusinessPrice   ?? _flight.businessPrice   ?? 0;
+      if (cls === 'FIRST_CLASS') return _flight.calculatedFirstClassPrice ?? _flight.firstClassPrice ?? 0;
+      return 0;
+    }
+
+    function recalcTotal() {
+      const count = document.querySelectorAll('#passengers-list > div').length;
+      const base  = getBasePrice();
+      const total = base * count;
+      document.getElementById('total-price').textContent = `$${total.toFixed(2)}`;
+      document.getElementById('price-breakdown').textContent =
+        count > 0 ? `${count} passenger${count>1?'s':''} × $${base.toFixed(2)}` : '';
+    }
+
+    (async () => {
+      try {
+        _currentUser = await requireAuth();
+        if (!_currentUser) return;
+        await initNavbar('flights');
+
+        const flightId = getParam('flightId');
+        if (!flightId) {
+          document.getElementById('flight-preview').innerHTML =
+            '<div class="empty-state"><h3>No flight selected</h3><p><a href="/flights-search.html">Browse flights</a></p></div>';
+          return;
+        }
+
+        const res = await API.get(`/flights/${flightId}`);
+        if (!res || !res.success) {
+          if (res?.message === 'Authentication required') {
+            window.location.href = '/index.html';
+            return;
+          }
+          document.getElementById('flight-preview').innerHTML =
+            '<div class="empty-state"><h3>Flight not found</h3><p>' + (res?.message || '') + '</p></div>';
+          return;
+        }
+        _flight = res.data;
+
+        document.getElementById('flight-preview').innerHTML = renderFlightCard(_flight, false);
+        const economyPrice   = _flight.calculatedEconomyPrice    ?? _flight.economyPrice    ?? 0;
+        const businessPrice  = _flight.calculatedBusinessPrice   ?? _flight.businessPrice   ?? 0;
+        const firstClassPrice= _flight.calculatedFirstClassPrice ?? _flight.firstClassPrice ?? 0;
+        document.getElementById('price-economy').textContent  = `$${economyPrice.toFixed(2)}`;
+        document.getElementById('price-business').textContent = `$${businessPrice.toFixed(2)}`;
+        document.getElementById('price-first').textContent    = `$${firstClassPrice.toFixed(2)}`;
+
+        if (_currentUser.role === 'AGENT' || _currentUser.role === 'ADMIN') {
+          document.getElementById('agent-section').style.display = 'block';
+        }
+
+        document.querySelectorAll('input[name="seatClass"]').forEach(r => r.addEventListener('change', recalcTotal));
+
+        addPassenger();
+        recalcTotal();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      } catch (err) {
+        document.getElementById('flight-preview').innerHTML =
+          `<div class="empty-state"><h3>Something went wrong</h3><p>${err.message}</p></div>`;
+        showToast('Failed to load flight: ' + err.message);
+      }
+    })();
+
+    async function submitBooking() {
+      const paxDivs  = document.querySelectorAll('#passengers-list > div');
+      const passengers = [];
+      let valid = true;
+      paxDivs.forEach(d => {
+        const name = d.querySelector('.pax-name')?.value?.trim();
+        if (!name) { valid = false; return; }
+        passengers.push({
+          name,
+          passportNumber: d.querySelector('.pax-passport')?.value || null,
+          dateOfBirth:    d.querySelector('.pax-dob')?.value || null,
+        });
+      });
+      if (!valid || passengers.length === 0) { showToast('Please fill in passenger names'); return; }
+
+      const btn = document.getElementById('book-btn');
+      setLoading(btn, true, 'Confirm Booking');
+
+      const payload = {
+        flightId:   _flight.id,
+        seatClass:  getSelectedClass(),
+        passengers,
+      };
+      const cidInput = document.getElementById('customer-id')?.value;
+      if (cidInput) payload.customerId = parseInt(cidInput);
+
+      const res = await createBooking(payload);
+      setLoading(btn, false, 'Confirm Booking');
+
+      if (res && res.success) {
+        showToast('Booking created!', 'success');
+        window.location.href = `/booking-detail.html?ref=${res.data.bookingReference}`;
+      } else {
+        showToast(res?.message || 'Booking failed');
+      }
+    }
+  </script>
+</body>
+</html>

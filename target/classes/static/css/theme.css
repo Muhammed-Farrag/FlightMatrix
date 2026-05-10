@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+:root {
+  --surface:                  #071325;
+  --surface-dim:              #071325;
+  --surface-bright:           #2e394d;
+  --surface-container-lowest: #030e20;
+  --surface-container-low:    #101c2e;
+  --surface-container:        #142032;
+  --surface-container-high:   #1f2a3d;
+  --surface-container-highest:#2a3548;
+  --on-surface:               #d7e3fc;
+  --on-surface-variant:       #c1c7d2;
+  --outline:                  #8b919c;
+  --outline-variant:          #414751;
+  --primary:                  #a0caff;
+  --on-primary:               #003259;
+  --primary-container:        #4f94dd;
+  --secondary:                #9acbff;
+  --tertiary:                 #eec13c;
+  --error:                    #ffb4ab;
+  --background:               #071325;
+  --on-background:            #d7e3fc;
+  --success:                  #6dd58c;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  background: var(--background);
+  color: var(--on-surface);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }

@@ -1,0 +1,259 @@
+@startuml FlightMatrix Class Diagram
+!theme plain
+skinparam backgroundColor #071325
+skinparam classBackgroundColor #142032
+skinparam classBorderColor #414751
+skinparam classArrowColor #a0caff
+skinparam classFontColor #d7e3fc
+skinparam classHeaderBackgroundColor #1f2a3d
+skinparam noteBackgroundColor #101c2e
+skinparam noteBorderColor #414751
+skinparam noteFontColor #c1c7d2
+skinparam linetype ortho
+
+title FlightMatrix — Class Diagram
+
+' ────────────────────────────────────────────────────────────
+' ENUMS
+' ────────────────────────────────────────────────────────────
+enum UserRole {
+  CUSTOMER
+  AGENT
+  ADMIN
+}
+
+enum BookingStatus {
+  RESERVED
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum SeatClass {
+  ECONOMY
+  BUSINESS
+  FIRST_CLASS
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+}
+
+' ────────────────────────────────────────────────────────────
+' INTERFACE
+' ────────────────────────────────────────────────────────────
+interface PaymentProcessor {
+  + processPayment(payment: Payment): boolean
+  + validatePaymentDetails(payment: Payment): boolean
+  + updateStatus(payment: Payment, status: PaymentStatus): void
+}
+
+' ────────────────────────────────────────────────────────────
+' PAYMENT PROCESSORS
+' ────────────────────────────────────────────────────────────
+class CreditCardProcessor {
+  + processPayment(payment: Payment): boolean
+  + validatePaymentDetails(payment: Payment): boolean
+  + updateStatus(payment: Payment, status: PaymentStatus): void
+}
+
+class BankTransferProcessor {
+  + processPayment(payment: Payment): boolean
+  + validatePaymentDetails(payment: Payment): boolean
+  + updateStatus(payment: Payment, status: PaymentStatus): void
+}
+
+PaymentProcessor <|.. CreditCardProcessor
+PaymentProcessor <|.. BankTransferProcessor
+
+' ────────────────────────────────────────────────────────────
+' USER HIERARCHY
+' ────────────────────────────────────────────────────────────
+abstract class User {
+  - userId: Long
+  - username: String
+  - password: String  <<write-only>>
+  - name: String
+  - email: String
+  - contactInfo: String
+  - role: UserRole
+  - active: boolean
+  + login(): void
+  + logout(): void
+  + {abstract} updateProfile(name, email, contactInfo): void
+  + getAuthorities(): Collection<GrantedAuthority>
+  + isEnabled(): boolean
+}
+
+class Customer {
+  - address: String
+  - preferences: String
+  - bookingHistory: List<Booking>
+  + updateProfile(name, email, contactInfo): void
+}
+
+class Agent {
+  - department: String
+  - commission: Double
+  + updateProfile(name, email, contactInfo): void
+}
+
+class Administrator {
+  - securityLevel: Integer
+  + updateProfile(name, email, contactInfo): void
+}
+
+User <|-- Customer
+User <|-- Agent
+User <|-- Administrator
+
+User --> UserRole
+
+' ────────────────────────────────────────────────────────────
+' FLIGHT HIERARCHY
+' ────────────────────────────────────────────────────────────
+abstract class Flight {
+  - id: Long
+  - flightNumber: String
+  - airline: String
+  - origin: String
+  - destination: String
+  - departureTime: LocalDateTime
+  - arrivalTime: LocalDateTime
+  - availableSeats: Integer
+  - economyPrice: Double
+  - businessPrice: Double
+  - firstClassPrice: Double
+  + {abstract} calculatePrice(seatClass: SeatClass): double
+  + checkAvailability(count: int): boolean
+  + reserveSeat(): void
+  + releaseSeat(): void
+  + updateSchedule(): void
+  + getCalculatedEconomyPrice(): double
+  + getCalculatedBusinessPrice(): double
+  + getCalculatedFirstClassPrice(): double
+  + getFlightType(): String
+}
+
+class DomesticFlight {
+  - roundTrip: boolean
+  + calculatePrice(seatClass: SeatClass): double
+  ' Economy/Business/FirstClass × 1.05 (5% domestic tax)
+}
+
+class InternationalFlight {
+  - visaRequired: boolean
+  - transitCountries: String
+  + calculatePrice(seatClass: SeatClass): double
+  ' Economy/Business/FirstClass × 1.15 + $50
+}
+
+Flight <|-- DomesticFlight
+Flight <|-- InternationalFlight
+
+' ────────────────────────────────────────────────────────────
+' BOOKING, PASSENGER, PAYMENT, SEAT
+' ────────────────────────────────────────────────────────────
+class Booking {
+  - id: Long
+  - bookingReference: String
+  - seatClass: SeatClass
+  - status: BookingStatus
+  - paymentStatus: PaymentStatus
+  - totalPrice: Double
+  - createdAt: LocalDateTime
+  + addPassenger(passenger: Passenger): void
+  + calculateTotalPrice(): double
+  + confirmBooking(): void
+  + cancel(): void
+  + generateItinerary(): String
+}
+
+class Passenger {
+  - passengerId: Long
+  - name: String
+  - passportNumber: String
+  - dateOfBirth: LocalDate
+  - specialRequests: String
+}
+
+class Payment {
+  - paymentId: Long
+  - bookingReference: String
+  - amount: Double
+  - method: PaymentMethod
+  - status: PaymentStatus
+  - transactionDate: LocalDateTime
+  - cardNumber: String  <<JsonIgnore>>
+  - iban: String  <<JsonIgnore>>
+  + validatePaymentDetails(): boolean
+  + updateStatus(status: PaymentStatus): void
+}
+
+class Seat {
+  - seatId: Long
+  - seatNumber: String
+  - seatClass: SeatClass
+  - available: boolean
+}
+
+' ────────────────────────────────────────────────────────────
+' RELATIONSHIPS
+' ────────────────────────────────────────────────────────────
+Customer "1" o-- "0..*" Booking : bookingHistory
+Booking "1" *-- "1..*" Passenger : passengers
+Booking "0..1" -- "1" Payment : payment
+Booking "*" --> "1" Flight : flight
+Flight "1" *-- "0..*" Seat : seats
+
+Booking --> BookingStatus
+Booking --> SeatClass
+Booking --> PaymentStatus
+Payment --> PaymentMethod
+Payment --> PaymentStatus
+
+' ────────────────────────────────────────────────────────────
+' BOOKING SYSTEM (Central Coordinator)
+' ────────────────────────────────────────────────────────────
+class BookingSystem {
+  + searchFlights(request: FlightSearchRequest): List<Flight>
+  + createBooking(request: BookingRequest, customerId: Long): Booking
+  + cancelBooking(reference: String): Booking
+  + confirmBooking(reference: String): Booking
+  + processPayment(request: PaymentRequest): Payment
+  + generateTicket(reference: String): String
+  + registerUser(request: RegisterRequest): User
+}
+
+BookingSystem ..> Flight
+BookingSystem ..> Booking
+BookingSystem ..> Payment
+BookingSystem ..> User
+
+note top of BookingSystem
+  Central coordinator — all controllers
+  depend on BookingSystem, not on
+  individual services directly.
+end note
+
+note right of User
+  Abstract class — cannot be
+  instantiated directly.
+  Implements Spring Security's
+  UserDetails interface.
+end note
+
+note right of Flight
+  Abstract class.
+  calculatePrice() is polymorphic:
+  DomesticFlight: price × 1.05
+  InternationalFlight: price × 1.15 + $50
+end note
+
+@enduml

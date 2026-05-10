@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — Payment</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container" style="max-width:600px;">
+
+      <div style="margin-bottom:24px;">
+        <a id="back-link" href="/booking-list.html" style="font-size:13px;color:var(--on-surface-variant);text-decoration:none;">← Back to Booking</a>
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;margin-top:8px;">Payment</div>
+      </div>
+
+      <div id="booking-summary" style="margin-bottom:24px;">
+        <div style="text-align:center;padding:24px;"><span class="spinner"></span></div>
+      </div>
+
+      <div style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:20px;">Payment Method</div>
+        <div class="payment-methods" id="payment-methods">
+          <label class="payment-method">
+            <input type="radio" name="paymentMethod" value="CREDIT_CARD" checked>
+            <div class="payment-method__card">
+              <i data-lucide="credit-card" style="width:20px;height:20px;color:var(--primary);"></i>
+              <div style="margin-top:8px;font-size:14px;font-weight:600;">Credit Card</div>
+              <div style="font-size:12px;color:var(--on-surface-variant);">Instant confirmation</div>
+            </div>
+          </label>
+          <label class="payment-method">
+            <input type="radio" name="paymentMethod" value="BANK_TRANSFER">
+            <div class="payment-method__card">
+              <i data-lucide="building-2" style="width:20px;height:20px;color:var(--primary);"></i>
+              <div style="margin-top:8px;font-size:14px;font-weight:600;">Bank Transfer</div>
+              <div style="font-size:12px;color:var(--on-surface-variant);">Pending verification</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div id="card-fields" style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:20px;">Card Details</div>
+        <div class="form-group">
+          <label class="form-label">Card Number</label>
+          <input id="card-number" type="text" class="input-sky data-mono" placeholder="1234 5678 9012 3456" maxlength="19"
+            oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{4})/g,'$1 ').trim()">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+          <div class="form-group">
+            <label class="form-label">Expiry</label>
+            <input id="card-expiry" type="text" class="input-sky data-mono" placeholder="MM/YY" maxlength="5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">CVV</label>
+            <input id="card-cvv" type="text" class="input-sky data-mono" placeholder="123" maxlength="4">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <label class="form-label">Cardholder Name</label>
+          <input id="card-name" type="text" class="input-sky" placeholder="Name on card">
+        </div>
+      </div>
+
+      <div id="bank-fields" style="display:none;background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:20px;">Bank Details</div>
+        <div class="form-group">
+          <label class="form-label">IBAN</label>
+          <input id="iban" type="text" class="input-sky data-mono" placeholder="EG12 3456 7890 1234 5678 90" maxlength="34">
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <label class="form-label">Bank Name</label>
+          <input id="bank-name" type="text" class="input-sky" placeholder="Your bank name">
+        </div>
+      </div>
+
+      <button id="pay-btn" class="cloud-btn" style="width:100%;" onclick="submitPayment()">
+        <i data-lucide="lock" style="width:15px;height:15px;"></i> Pay Now
+      </button>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/payment.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    let _ref = null;
+    let _total = 0;
+
+    document.querySelectorAll('input[name="paymentMethod"]').forEach(r => {
+      r.addEventListener('change', () => {
+        const isCc = r.value === 'CREDIT_CARD';
+        document.getElementById('card-fields').style.display = isCc ? 'block' : 'none';
+        document.getElementById('bank-fields').style.display = isCc ? 'none'  : 'block';
+      });
+    });
+
+    async function submitPayment() {
+      const method = document.querySelector('input[name="paymentMethod"]:checked')?.value;
+      const btn    = document.getElementById('pay-btn');
+      const payload = { bookingReference: _ref, method, amount: _total };
+
+      if (method === 'CREDIT_CARD') {
+        payload.cardNumber  = (document.getElementById('card-number').value||'').replace(/\s/g,'');
+        payload.cardExpiry  = document.getElementById('card-expiry').value;
+        payload.cardCvv     = document.getElementById('card-cvv').value;
+        payload.cardHolder  = document.getElementById('card-name').value;
+        if (payload.cardNumber.length !== 16) { showToast('Enter a valid 16-digit card number'); return; }
+      } else {
+        payload.iban     = (document.getElementById('iban').value||'').replace(/\s/g,'');
+        payload.bankName = document.getElementById('bank-name').value;
+        if (payload.iban.length < 15) { showToast('Enter a valid IBAN'); return; }
+      }
+
+      setLoading(btn, true, 'Pay Now');
+      const res = await processPayment(payload);
+      setLoading(btn, false, 'Pay Now');
+
+      if (res && res.success) {
+        showToast('Payment processed!', 'success');
+        setTimeout(() => window.location.href = `/eticket.html?ref=${_ref}`, 800);
+      } else {
+        showToast(res?.message || 'Payment failed');
+      }
+    }
+
+    (async () => {
+      await requireAuth();
+      await initNavbar('bookings');
+      _ref = getParam('ref');
+      if (!_ref) return;
+      document.getElementById('back-link').href = `/booking-detail.html?ref=${_ref}`;
+
+      const res = await API.get(`/bookings/${_ref}`);
+      const b   = res?.data;
+      if (b) {
+        _total = b.totalPrice || 0;
+        document.getElementById('booking-summary').innerHTML = `
+          <div style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:16px;padding:20px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;color:var(--on-surface-variant);margin-bottom:4px;">Booking Reference</div>
+              <div class="data-mono" style="font-size:16px;font-weight:700;color:var(--primary);">${b.bookingReference}</div>
+              <div style="font-size:13px;color:var(--on-surface-variant);margin-top:4px;">${b.flight?.flightNumber||''} · ${b.seatClass||''} · ${b.passengers?.length||1} pax</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px;color:var(--on-surface-variant);margin-bottom:4px;">Total Due</div>
+              <div class="data-mono" style="font-size:24px;font-weight:700;">$${_total.toFixed(2)}</div>
+            </div>
+          </div>`;
+        document.getElementById('pay-btn').innerHTML =
+          `<i data-lucide="lock" style="width:15px;height:15px;"></i> Pay $${_total.toFixed(2)}`;
+      } else {
+        document.getElementById('booking-summary').innerHTML = '';
+      }
+      lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

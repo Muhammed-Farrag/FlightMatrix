@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — Register</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .auth-card {
+      background:var(--surface-container-low);
+      border:1px solid var(--outline-variant);
+      border-radius:24px;
+      padding:48px 44px;
+      width:100%;
+      max-width:440px;
+    }
+    .auth-brand {
+      display:flex; align-items:center; gap:10px;
+      font-family:'Plus Jakarta Sans',sans-serif;
+      font-size:22px; font-weight:800;
+      color:var(--primary); margin-bottom:32px;
+    }
+    .auth-logo {
+      width:28px;
+      height:28px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .auth-logo img {
+      width:22px;
+      height:22px;
+      display:block;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="auth-logo"><img src="/assets/logo.svg" alt="FlightMatrix logo"></span>FlightMatrix
+    </div>
+    <div style="margin-bottom:28px;">
+      <div style="font-size:20px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">Create account</div>
+      <div style="font-size:13px;color:var(--on-surface-variant);margin-top:4px;">Join FlightMatrix as a customer</div>
+    </div>
+
+    <form id="register-form" autocomplete="off">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input id="name" type="text" class="input-sky" placeholder="Your full name" required>
+      </div>
+      <div class="form-group" style="margin-top:18px;">
+        <label class="form-label">Username</label>
+        <input id="username" type="text" class="input-sky" placeholder="Choose a username" required>
+      </div>
+      <div class="form-group" style="margin-top:18px;">
+        <label class="form-label">Email</label>
+        <input id="email" type="email" class="input-sky" placeholder="your@email.com" required>
+      </div>
+      <div class="form-group" style="margin-top:18px;">
+        <label class="form-label">Password</label>
+        <input id="password" type="password" class="input-sky" placeholder="Choose a password" required>
+      </div>
+      <div class="form-group" style="margin-top:18px;">
+        <label class="form-label">Contact Info</label>
+        <input id="contactInfo" type="text" class="input-sky" placeholder="Phone or contact number">
+      </div>
+      <button id="register-btn" type="submit" class="cloud-btn" style="width:100%;margin-top:28px;">
+        Create Account
+      </button>
+    </form>
+
+    <div style="text-align:center;margin-top:20px;font-size:13px;color:var(--on-surface-variant);">
+      Already have an account?
+      <a href="/index.html" style="color:var(--primary);text-decoration:none;font-weight:600;">Sign in</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    lucide.createIcons();
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('register-btn');
+      setLoading(btn, true, 'Create Account');
+      const res = await API.post('/auth/register', {
+        name:        document.getElementById('name').value,
+        username:    document.getElementById('username').value,
+        email:       document.getElementById('email').value,
+        password:    document.getElementById('password').value,
+        contactInfo: document.getElementById('contactInfo').value,
+      });
+      setLoading(btn, false, 'Create Account');
+      if (res && res.success) {
+        showToast('Account created! Signing you in…', 'success');
+        const loginRes = await login(
+          document.getElementById('username').value,
+          document.getElementById('password').value
+        );
+        if (loginRes && loginRes.success) redirectByRole(loginRes.data.role);
+        else window.location.href = '/index.html';
+      } else {
+        showToast(res?.message || 'Registration failed');
+      }
+    });
+  </script>
+</body>
+</html>

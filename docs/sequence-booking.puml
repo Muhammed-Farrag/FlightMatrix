@@ -1,0 +1,69 @@
+@startuml Sequence Diagram — Flight Booking Flow
+!theme plain
+skinparam backgroundColor #071325
+skinparam sequenceArrowColor #a0caff
+skinparam sequenceLifeLineBorderColor #414751
+skinparam sequenceParticipantBackgroundColor #142032
+skinparam sequenceParticipantBorderColor #414751
+skinparam sequenceParticipantFontColor #d7e3fc
+skinparam sequenceBoxBackgroundColor #101c2e
+skinparam sequenceBoxBorderColor #414751
+skinparam noteFontColor #c1c7d2
+skinparam noteBackgroundColor #101c2e
+skinparam noteBorderColor #414751
+
+title Flight Booking Flow
+
+actor Customer
+participant "Browser\n(flights-search.html)" as Browser
+participant "FlightController" as FC
+participant "BookingController" as BC
+participant "BookingSystem" as BS
+participant "BookingService" as BkS
+participant "FlightService" as FS
+database "SQLite DB" as DB
+
+== Search Flights ==
+Customer -> Browser : Fill search form\n(origin, destination, date)
+Browser -> FC : GET /api/flights/search\n?origin=Cairo&destination=London
+FC -> BS : searchFlights(request)
+BS -> FS : searchFlights(request)
+FS -> DB : findByOriginAndDestination()
+DB --> FS : List<Flight>
+FS --> BS : List<Flight>
+BS --> FC : List<Flight>
+FC --> Browser : ApiResponse { success, data: [flights] }
+Browser -> Customer : Render flight cards\nwith calculated prices
+
+== Select Flight ==
+Customer -> Browser : Click "Book" on FM-101
+Browser -> Browser : Navigate to\n/booking-create.html?flightId=1
+
+== Fill Booking Form ==
+Browser -> FC : GET /api/flights/1
+FC --> Browser : Flight details (FM-101)
+Customer -> Browser : Fill passenger details\nSelect ECONOMY class
+Browser -> Browser : Calculate total price\n(polymorphic: base × 1.15 + $50)
+
+== Create Booking ==
+Customer -> Browser : Click "Confirm Booking"
+Browser -> BC : POST /api/bookings\n{ flightId:1, seatClass:ECONOMY, passengers:[...] }
+BC -> BS : createBooking(request, customerId)
+BS -> BkS : createBooking(request, customerId)
+BkS -> DB : findById(flightId)
+DB --> BkS : Flight (InternationalFlight)
+note right of BkS
+  flight.checkAvailability(count)
+  pnr = generateUniquePNR() → FM-KC8KMW
+  price = flight.calculatePrice(ECONOMY)
+  (polymorphic dispatch)
+end note
+BkS -> DB : save(Flight) — reserveSeat()
+BkS -> DB : save(Booking) status=RESERVED
+DB --> BkS : Booking { ref: FM-KC8KMW }
+BkS --> BS : Booking
+BS --> BC : Booking
+BC --> Browser : ApiResponse { success, data: Booking }
+Browser -> Customer : Redirect to\n/booking-detail.html?ref=FM-KC8KMW
+
+@enduml

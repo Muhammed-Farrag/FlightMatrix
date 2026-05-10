@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — E-Ticket</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <style>
+    @media print {
+      .navbar, .no-print { display:none !important; }
+      .page-content { padding-top:0 !important; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container" style="max-width:700px;">
+
+      <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <a id="back-link" href="/booking-list.html" style="font-size:13px;color:var(--on-surface-variant);text-decoration:none;">← Back to Bookings</a>
+        <div style="display:flex;gap:12px;">
+          <a id="detail-link" href="/booking-list.html" class="cloud-btn-outline" style="text-decoration:none;font-size:13px;">View Booking</a>
+          <button class="cloud-btn" onclick="window.print()">
+            <i data-lucide="printer" style="width:15px;height:15px;"></i> Print
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;no-print">
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;" class="no-print">E-Ticket / Boarding Pass</div>
+      </div>
+
+      <div id="eticket-content">
+        <div style="text-align:center;padding:60px;"><span class="spinner"></span></div>
+      </div>
+
+      <div class="no-print" style="margin-top:28px;padding:20px;background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:16px;">
+        <div style="font-size:13px;color:var(--on-surface-variant);display:flex;align-items:start;gap:10px;">
+          <i data-lucide="info" style="width:16px;height:16px;flex-shrink:0;margin-top:1px;"></i>
+          Please arrive at the airport at least 2 hours before departure for international flights or 90 minutes for domestic flights. Present this boarding pass along with a valid photo ID.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/payment.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    (async () => {
+      await requireAuth();
+      await initNavbar('bookings');
+
+      const ref = getParam('ref');
+      if (!ref) return;
+      document.getElementById('back-link').href   = `/booking-detail.html?ref=${ref}`;
+      document.getElementById('detail-link').href = `/booking-detail.html?ref=${ref}`;
+
+      const res = await API.get(`/bookings/${ref}`);
+      const el  = document.getElementById('eticket-content');
+
+      if (!res || !res.success || !res.data) {
+        el.innerHTML = `<div class="empty-state"><h3>Booking not found</h3></div>`;
+        lucide.createIcons(); return;
+      }
+
+      const b = res.data;
+      if (b.status !== 'CONFIRMED') {
+        el.innerHTML = `<div class="empty-state">
+          <i data-lucide="alert-circle" style="width:40px;height:40px;margin-bottom:12px;color:var(--outline-variant);"></i>
+          <h3>Ticket Not Available</h3>
+          <p>The booking must be confirmed and paid before an e-ticket can be issued.</p>
+          <a href="/booking-detail.html?ref=${ref}" class="cloud-btn" style="margin-top:16px;display:inline-block;text-decoration:none;">View Booking</a>
+        </div>`;
+        lucide.createIcons(); return;
+      }
+
+      el.innerHTML = renderETicket(b);
+      lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

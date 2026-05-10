@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-FlightMatrixApplication<flightmatrix>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.flightmatrix.FlightMatrixApplication",
+            "projectName": "flightmatrix",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

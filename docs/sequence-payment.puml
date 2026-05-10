@@ -1,0 +1,88 @@
+@startuml Sequence Diagram — Payment Processing Flow
+!theme plain
+skinparam backgroundColor #071325
+skinparam sequenceArrowColor #a0caff
+skinparam sequenceLifeLineBorderColor #414751
+skinparam sequenceParticipantBackgroundColor #142032
+skinparam sequenceParticipantBorderColor #414751
+skinparam sequenceParticipantFontColor #d7e3fc
+skinparam sequenceBoxBackgroundColor #101c2e
+skinparam sequenceBoxBorderColor #414751
+skinparam noteFontColor #c1c7d2
+skinparam noteBackgroundColor #101c2e
+skinparam noteBorderColor #414751
+
+title Payment Processing Flow
+
+actor Customer
+participant "Browser\n(payment.html)" as Browser
+participant "PaymentController" as PC
+participant "BookingSystem" as BS
+participant "PaymentService" as PS
+participant "PaymentProcessor\n(interface)" as PP
+participant "CreditCardProcessor\nor BankTransferProcessor" as Impl
+database "SQLite DB" as DB
+
+== Load Payment Page ==
+Customer -> Browser : Navigate to\n/payment.html?ref=FM-KC8KMW
+Browser -> Browser : GET /api/bookings/FM-KC8KMW
+Browser -> Customer : Show booking summary\n($517.50 due)
+
+== Select Payment Method ==
+Customer -> Browser : Select "Credit Card"\nEnter card details
+
+== Submit Payment ==
+Customer -> Browser : Click "Pay $517.50"
+Browser -> PC : POST /api/payments/process\n{ bookingReference, method:CREDIT_CARD,\n  amount:517.50, cardNumber:... }
+PC -> BS : processPayment(request)
+BS -> PS : processPayment(request)
+
+PS -> DB : findByBookingReference("FM-KC8KMW")
+DB --> PS : Booking { status:RESERVED, totalPrice:517.50 }
+
+note right of PS
+  amount defaults to booking.totalPrice
+  if not supplied by client
+end note
+
+PS -> PS : new Payment(booking, amount, CREDIT_CARD)
+
+PS -> PP : <<resolve strategy>>
+PP --> Impl : CreditCardProcessor
+
+PS -> Impl : validatePaymentDetails(payment)
+note right of Impl
+  Validates cardNumber is 16 digits
+end note
+Impl --> PS : true
+
+PS -> Impl : processPayment(payment)
+Impl -> Impl : updateStatus(payment, PAID)\nset transactionDate = now()
+Impl --> PS : true (success)
+
+PS -> DB : save(Payment) { status:PAID }
+
+PS -> DB : booking.confirmBooking()\n→ status=CONFIRMED, paymentStatus=PAID
+PS -> DB : save(Booking)
+
+DB --> PS : Payment
+PS --> BS : Payment
+BS --> PC : Payment
+PC --> Browser : ApiResponse { success, data: Payment }
+
+Browser -> Customer : Toast "Payment processed!"\nRedirect to /eticket.html?ref=FM-KC8KMW
+
+== View E-Ticket ==
+Customer -> Browser : /eticket.html?ref=FM-KC8KMW
+Browser -> Browser : GET /api/bookings/FM-KC8KMW
+Browser -> Browser : renderETicket(booking)\n→ Boarding pass HTML
+Browser -> Customer : Display boarding pass\nwith PNR, flight info, seat class
+
+note over Customer, DB
+  Bank Transfer alternate path:
+  BankTransferProcessor.processPayment() → status=PENDING
+  Booking stays RESERVED until manual bank confirmation
+  No auto-redirect to e-ticket (payment pending)
+end note
+
+@enduml

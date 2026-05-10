@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — My Bookings</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+        <div>
+          <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">Bookings</div>
+          <div style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;" id="subtitle">Your reservations</div>
+        </div>
+        <a href="/flights-search.html" class="cloud-btn" style="text-decoration:none;">
+          <i data-lucide="plus" style="width:15px;height:15px;"></i> New Booking
+        </a>
+      </div>
+
+      <div id="bookings-table">
+        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/booking.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+      await initNavbar('bookings');
+
+      const res = await loadMyBookings();
+      const el  = document.getElementById('bookings-table');
+
+      if (!res || !res.success || !res.data || res.data.length === 0) {
+        el.innerHTML = `<div class="empty-state">
+          <i data-lucide="ticket" style="width:40px;height:40px;margin-bottom:12px;color:var(--outline-variant);"></i>
+          <h3>No bookings found</h3>
+          <p>Your reservations will appear here once you book a flight</p>
+          <a href="/flights-search.html" class="cloud-btn" style="margin-top:16px;display:inline-block;">Search Flights</a>
+        </div>`;
+        lucide.createIcons(); return;
+      }
+
+      el.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+        <thead><tr>
+          <th>PNR</th><th>Flight</th><th>Date</th><th>Status</th><th>Total</th><th></th>
+        </tr></thead>
+        <tbody>${res.data.map(b => renderBookingRow(b)).join('')}</tbody>
+      </table></div>`;
+      lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

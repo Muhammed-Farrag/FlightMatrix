@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — Agent Dashboard</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container">
+
+      <div style="margin-bottom:32px;">
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;" id="greeting">Agent Dashboard</div>
+        <div style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;">Manage bookings and assist passengers</div>
+      </div>
+
+      <div class="action-grid" style="margin-bottom:40px;">
+        <a href="/flights-search.html" class="action-card">
+          <i data-lucide="plane" style="width:28px;height:28px;color:var(--primary);margin-bottom:12px;"></i>
+          <div style="font-size:15px;font-weight:600;">Search Flights</div>
+          <div style="font-size:12px;color:var(--on-surface-variant);margin-top:4px;">Browse and book on behalf of passengers</div>
+        </a>
+        <a href="/booking-list.html" class="action-card">
+          <i data-lucide="list" style="width:28px;height:28px;color:var(--primary);margin-bottom:12px;"></i>
+          <div style="font-size:15px;font-weight:600;">All Bookings</div>
+          <div style="font-size:12px;color:var(--on-surface-variant);margin-top:4px;">View all passenger reservations</div>
+        </a>
+      </div>
+
+      <div style="font-size:16px;font-weight:600;margin-bottom:16px;">Recent Bookings</div>
+      <div id="recent-bookings">
+        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/booking.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth(['AGENT']);
+      if (!user) return;
+      await initNavbar('dashboard');
+      document.getElementById('greeting').textContent = `Welcome, ${user.name}`;
+
+      const res = await loadMyBookings();
+      const el = document.getElementById('recent-bookings');
+      if (!res || !res.success || !res.data || res.data.length === 0) {
+        el.innerHTML = `<div class="empty-state">
+          <i data-lucide="inbox" style="width:40px;height:40px;margin-bottom:12px;color:var(--outline-variant);"></i>
+          <h3>No bookings yet</h3><p>Bookings created through this account will appear here</p>
+        </div>`;
+        lucide.createIcons(); return;
+      }
+      el.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+        <thead><tr><th>PNR</th><th>Flight</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
+        <tbody>${res.data.slice(0,10).map(b => renderBookingRow(b)).join('')}</tbody>
+      </table></div>`;
+      lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

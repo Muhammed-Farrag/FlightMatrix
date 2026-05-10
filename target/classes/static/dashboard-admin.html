@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+  <style>
+    .stat-card {
+      background:var(--surface-container-low);
+      border:1px solid var(--outline-variant);
+      border-radius:16px; padding:24px; flex:1; min-width:160px;
+    }
+    .stat-value { font-size:32px; font-weight:800; font-family:'Plus Jakarta Sans',sans-serif; color:var(--primary); }
+    .stat-label { font-size:12px; color:var(--on-surface-variant); margin-top:4px; text-transform:uppercase; letter-spacing:.06em; }
+  </style>
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container">
+
+      <div style="margin-bottom:32px;">
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">Admin Dashboard</div>
+        <div style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;">System overview and management</div>
+      </div>
+
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:40px;">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-users">—</div>
+          <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-flights">—</div>
+          <div class="stat-label">Flights</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-bookings">—</div>
+          <div class="stat-label">Bookings</div>
+        </div>
+      </div>
+
+      <div class="action-grid" style="margin-bottom:40px;">
+        <a href="/admin-users.html" class="action-card">
+          <i data-lucide="users" style="width:28px;height:28px;color:var(--primary);margin-bottom:12px;"></i>
+          <div style="font-size:15px;font-weight:600;">Manage Users</div>
+          <div style="font-size:12px;color:var(--on-surface-variant);margin-top:4px;">View, activate, or deactivate accounts</div>
+        </a>
+        <a href="/flights-search.html" class="action-card">
+          <i data-lucide="plane" style="width:28px;height:28px;color:var(--primary);margin-bottom:12px;"></i>
+          <div style="font-size:15px;font-weight:600;">Flight Management</div>
+          <div style="font-size:12px;color:var(--on-surface-variant);margin-top:4px;">Browse all flights and schedules</div>
+        </a>
+        <a href="/booking-list.html" class="action-card">
+          <i data-lucide="ticket" style="width:28px;height:28px;color:var(--primary);margin-bottom:12px;"></i>
+          <div style="font-size:15px;font-weight:600;">All Bookings</div>
+          <div style="font-size:12px;color:var(--on-surface-variant);margin-top:4px;">Monitor all reservations</div>
+        </a>
+      </div>
+
+      <div style="font-size:16px;font-weight:600;margin-bottom:16px;">Recent Bookings</div>
+      <div id="recent-bookings">
+        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/booking.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    (async () => {
+      const user = await requireAuth(['ADMIN']);
+      if (!user) return;
+      await initNavbar('dashboard');
+
+      const [usersRes, flightsRes, bookingsRes] = await Promise.all([
+        API.get('/admin/users'),
+        API.get('/flights/all'),
+        API.get('/bookings/my'),
+      ]);
+
+      document.getElementById('stat-users').textContent    = usersRes?.data?.length    ?? '—';
+      document.getElementById('stat-flights').textContent  = flightsRes?.data?.length  ?? '—';
+      document.getElementById('stat-bookings').textContent = bookingsRes?.data?.length ?? '—';
+
+      const el = document.getElementById('recent-bookings');
+      if (!bookingsRes || !bookingsRes.success || !bookingsRes.data || bookingsRes.data.length === 0) {
+        el.innerHTML = `<div class="empty-state"><h3>No bookings yet</h3></div>`;
+        lucide.createIcons(); return;
+      }
+      el.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+        <thead><tr><th>PNR</th><th>Flight</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
+        <tbody>${bookingsRes.data.slice(0,10).map(b => renderBookingRow(b)).join('')}</tbody>
+      </table></div>`;
+      lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — Search Flights</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container">
+
+      <div style="margin-bottom:28px;">
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">Search Flights</div>
+        <div style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;">Find the perfect flight for your journey</div>
+      </div>
+
+      <div style="background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:20px;padding:28px;margin-bottom:32px;">
+        <form id="search-form">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:16px;align-items:end;">
+            <div class="form-group">
+              <label class="form-label">From</label>
+              <input id="origin" type="text" class="input-sky" placeholder="Origin city or code">
+            </div>
+            <div class="form-group">
+              <label class="form-label">To</label>
+              <input id="destination" type="text" class="input-sky" placeholder="Destination city or code">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input id="date" type="date" class="input-sky">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Passengers</label>
+              <input id="passengers" type="number" class="input-sky" value="1" min="1" max="9" style="width:90px;">
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:20px;align-items:center;">
+            <button id="search-btn" type="submit" class="cloud-btn">
+              <i data-lucide="search" style="width:15px;height:15px;"></i> Search
+            </button>
+            <button type="button" class="cloud-btn-outline" onclick="showAll()">Show All Flights</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="flight-results"></div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/flights.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    async function showAll() {
+      const el = document.getElementById('flight-results');
+      el.innerHTML = '<div style="text-align:center;padding:40px;"><span class="spinner"></span></div>';
+      const res = await getAllFlights();
+      if (!res || !res.success || !res.data || res.data.length === 0) {
+        el.innerHTML = '<div class="empty-state"><h3>No flights available</h3></div>';
+        lucide.createIcons(); return;
+      }
+      el.innerHTML = res.data.map(f => renderFlightCard(f)).join('');
+      lucide.createIcons();
+    }
+
+    (async () => {
+      await requireAuth();
+      await initNavbar('flights');
+      bindSearchForm();
+      lucide.createIcons();
+      await showAll();
+    })();
+  </script>
+</body>
+</html>

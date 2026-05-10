@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <title>FlightMatrix — User Management</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/navbar.css">
+</head>
+<body>
+  <nav id="navbar" class="navbar"></nav>
+  <div class="page-content">
+    <div class="container">
+
+      <div style="margin-bottom:28px;">
+        <div style="font-size:24px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">User Management</div>
+        <div style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;">All registered accounts</div>
+      </div>
+
+      <div id="users-table">
+        <div style="text-align:center;padding:40px;"><span class="spinner"></span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/lucide.min.js"></script>
+  <script>
+    const roleChipMap = { CUSTOMER:'chip-reserved', AGENT:'chip-int', ADMIN:'chip-confirmed' };
+
+    function renderUserRow(u) {
+      const chip = `<span class="status-chip ${roleChipMap[u.role]||'chip-pending'}">${u.role}</span>`;
+      return `<tr>
+        <td class="data-mono" style="font-size:13px;">${u.id}</td>
+        <td style="font-weight:600;">${u.name}</td>
+        <td style="font-size:13px;color:var(--on-surface-variant);">${u.username}</td>
+        <td style="font-size:13px;color:var(--on-surface-variant);">${u.email||'—'}</td>
+        <td>${chip}</td>
+        <td><span class="status-chip ${u.active ? 'chip-confirmed' : 'chip-cancelled'}">${u.active ? 'Active' : 'Inactive'}</span></td>
+        <td>
+          <button class="cloud-btn-outline" style="padding:5px 14px;font-size:12px;"
+            onclick="toggleUser(${u.id}, ${u.active})">
+            ${u.active ? 'Deactivate' : 'Activate'}
+          </button>
+        </td>
+      </tr>`;
+    }
+
+    async function toggleUser(id, currentActive) {
+      const action = currentActive ? 'deactivate' : 'activate';
+      const res = await API.put(`/admin/users/${id}/${action}`);
+      if (res && res.success) { showToast('User updated', 'success'); loadUsers(); }
+      else showToast(res?.message || 'Failed to update user');
+    }
+
+    async function loadUsers() {
+      const el = document.getElementById('users-table');
+      const res = await API.get('/admin/users');
+      if (!res || !res.success || !res.data || res.data.length === 0) {
+        el.innerHTML = `<div class="empty-state"><h3>No users found</h3></div>`;
+        lucide.createIcons(); return;
+      }
+      el.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody>${res.data.map(u => renderUserRow(u)).join('')}</tbody>
+      </table></div>`;
+      lucide.createIcons();
+    }
+
+    (async () => {
+      const user = await requireAuth(['ADMIN']);
+      if (!user) return;
+      await initNavbar('users');
+      await loadUsers();
+    })();
+  </script>
+</body>
+</html>
